@@ -1,0 +1,2846 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Battle Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff00ff;
+            --neon-green: #39ff14;
+            --deep-purple: #1a0033;
+            --dark-bg: #0a0015;
+            --enemy-red: #ff0055;
+        }
+
+        body {
+            font-family: 'Orbitron', monospace;
+            background: linear-gradient(135deg, var(--dark-bg) 0%, var(--deep-purple) 50%, #0f0025 100%);
+            background-attachment: fixed;
+            color: white;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(2px 2px at 20% 30%, white, transparent),
+                radial-gradient(2px 2px at 60% 70%, white, transparent),
+                radial-gradient(1px 1px at 50% 50%, white, transparent),
+                radial-gradient(1px 1px at 80% 10%, white, transparent),
+                radial-gradient(2px 2px at 90% 60%, white, transparent),
+                radial-gradient(1px 1px at 33% 80%, white, transparent);
+            background-size: 200% 200%;
+            animation: stars 20s linear infinite;
+            opacity: 0.3;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes stars {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+        }
+
+        .game-container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            font-family: 'Bungee', cursive;
+            text-align: center;
+            font-size: 4rem;
+            margin: 30px 0;
+            text-transform: uppercase;
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-pink), var(--neon-green));
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradient-shift 3s ease infinite;
+            text-shadow: 0 0 30px rgba(0, 243, 255, 0.5);
+            filter: drop-shadow(0 0 20px rgba(255, 0, 255, 0.4));
+        }
+
+        @keyframes gradient-shift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .battle-arena {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 60px;
+            margin: 40px 0;
+            perspective: 1000px;
+            min-height: 500px;
+        }
+
+        .team-section {
+            background: rgba(20, 10, 40, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid;
+            position: relative;
+            overflow: hidden;
+            flex: 0 0 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .team-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0, 243, 255, 0.1) 0%, transparent 70%);
+            animation: pulse-glow 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+        }
+
+        .allies-section {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.3);
+        }
+
+        .enemies-section {
+            border-color: var(--enemy-red);
+            box-shadow: 0 0 30px rgba(255, 0, 85, 0.3);
+        }
+
+        .team-title {
+            font-size: 2rem;
+            margin-bottom: 25px;
+            text-align: center;
+            font-weight: 900;
+            letter-spacing: 3px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .allies-section .team-title {
+            color: var(--neon-blue);
+            text-shadow: 0 0 20px var(--neon-blue);
+        }
+
+        .enemies-section .team-title {
+            color: var(--enemy-red);
+            text-shadow: 0 0 20px var(--enemy-red);
+        }
+
+        .characters-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .character {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+            position: relative;
+            overflow: visible;
+        }
+
+        .character.hidden-protecting {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .character::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent);
+            transform: translate(-50%, -50%);
+            transition: width 0.4s ease, height 0.4s ease;
+        }
+
+        .character:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .character:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 10px 40px rgba(0, 243, 255, 0.4);
+        }
+
+        .character.selected {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 30px var(--neon-green), inset 0 0 20px rgba(57, 255, 20, 0.2);
+            animation: selected-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes selected-pulse {
+            0%, 100% { box-shadow: 0 0 30px var(--neon-green), inset 0 0 20px rgba(57, 255, 20, 0.2); }
+            50% { box-shadow: 0 0 50px var(--neon-green), inset 0 0 30px rgba(57, 255, 20, 0.4); }
+        }
+
+        /* Character Sprites */
+        .character-sprite {
+            width: 100px;
+            height: 120px;
+            margin: 0 auto 15px;
+            background: white;
+            border-radius: 50% 50% 45% 45%;
+            position: relative;
+            animation: character-float 3s ease-in-out infinite;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes character-float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Default character eyes */
+        .character-sprite.default::before,
+        .character-sprite.default::after {
+            content: '';
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background: black;
+            border-radius: 50%;
+            top: 40%;
+        }
+
+        .character-sprite.default::before {
+            left: 30%;
+        }
+
+        .character-sprite.default::after {
+            right: 30%;
+        }
+
+        /* Knight Sprite */
+        .character-sprite.knight {
+            background: #4a4a4a;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .character-sprite.knight::before,
+        .character-sprite.knight::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            top: 38%;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+            animation: knight-eye-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes knight-eye-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 255, 255, 0.8); }
+            50% { box-shadow: 0 0 25px rgba(255, 255, 255, 1); }
+        }
+
+        .character-sprite.knight::before {
+            left: 28%;
+        }
+
+        .character-sprite.knight::after {
+            right: 28%;
+        }
+
+        /* Knight Plume */
+        .knight-plume {
+            position: absolute;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 40px;
+            background: linear-gradient(180deg, #ff0055 0%, #cc0044 100%);
+            clip-path: polygon(50% 0%, 0% 100%, 20% 80%, 50% 20%, 80% 80%, 100% 100%);
+            animation: plume-wave 2s ease-in-out infinite;
+        }
+
+        @keyframes plume-wave {
+            0%, 100% { transform: translateX(-50%) rotate(0deg); }
+            50% { transform: translateX(-50%) rotate(3deg); }
+        }
+
+        /* Witch Sprite */
+        .character-sprite.witch {
+            background: #39ff14;
+            box-shadow: 0 10px 30px rgba(57, 255, 20, 0.6), 0 0 20px rgba(57, 255, 20, 0.4);
+            animation: character-float 3s ease-in-out infinite, witch-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes witch-glow {
+            0%, 100% { 
+                box-shadow: 0 10px 30px rgba(57, 255, 20, 0.6), 0 0 20px rgba(57, 255, 20, 0.4);
+            }
+            50% { 
+                box-shadow: 0 10px 40px rgba(57, 255, 20, 0.9), 0 0 30px rgba(57, 255, 20, 0.7);
+            }
+        }
+
+        .character-sprite.witch::before,
+        .character-sprite.witch::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #6a0dad;
+            border-radius: 50%;
+            top: 38%;
+        }
+
+        .character-sprite.witch::before {
+            left: 28%;
+        }
+
+        .character-sprite.witch::after {
+            right: 28%;
+        }
+
+        /* Witch Hat */
+        .witch-hat {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 25px solid transparent;
+            border-right: 25px solid transparent;
+            border-bottom: 35px solid #8b4ac9;
+            animation: hat-float 3s ease-in-out infinite;
+        }
+
+        .witch-hat::after {
+            content: '';
+            position: absolute;
+            bottom: -40px;
+            left: -35px;
+            width: 70px;
+            height: 8px;
+            background: #8b4ac9;
+            border-radius: 50%;
+        }
+
+        @keyframes hat-float {
+            0%, 100% { transform: translateX(-50%) translateY(0px) rotate(-3deg); }
+            50% { transform: translateX(-50%) translateY(-3px) rotate(3deg); }
+        }
+
+        /* Squire Sprite */
+        .character-sprite.squire {
+            background: #87ceeb;
+            box-shadow: 0 10px 30px rgba(135, 206, 235, 0.5);
+        }
+
+        .character-sprite.squire::before,
+        .character-sprite.squire::after {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: black;
+            border-radius: 50%;
+            top: 40%;
+        }
+
+        .character-sprite.squire::before {
+            left: 30%;
+        }
+
+        .character-sprite.squire::after {
+            right: 30%;
+        }
+
+        /* Shield emblem on squire chest */
+        .squire-shield {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.8rem;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        /* Shield barrier effect */
+        .shield-barrier {
+            position: absolute;
+            top: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 50px;
+            z-index: 10;
+            animation: shield-float 2s ease-in-out infinite;
+        }
+
+        @keyframes shield-float {
+            0%, 100% { transform: translateX(-50%) translateY(0px) scale(1); }
+            50% { transform: translateX(-50%) translateY(-5px) scale(1.1); }
+        }
+
+        .shield-barrier::before {
+            content: '🛡️';
+            font-size: 2.8rem;
+            filter: drop-shadow(0 0 15px rgba(135, 206, 235, 0.8));
+        }
+
+        /* Immunity aura effect */
+        .immunity-aura {
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            border: 3px solid gold;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.8), inset 0 0 20px rgba(255, 215, 0, 0.3);
+            animation: immunity-pulse 1.5s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        @keyframes immunity-pulse {
+            0%, 100% { 
+                box-shadow: 0 0 30px rgba(255, 215, 0, 0.8), inset 0 0 20px rgba(255, 215, 0, 0.3);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 50px rgba(255, 215, 0, 1), inset 0 0 30px rgba(255, 215, 0, 0.5);
+                transform: scale(1.05);
+            }
+        }
+
+        /* Taunt indicator */
+        .taunt-indicator {
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2rem;
+            animation: taunt-bounce 0.8s ease-in-out infinite;
+            filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.8));
+        }
+
+        @keyframes taunt-bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0px) scale(1); }
+            50% { transform: translateX(-50%) translateY(-8px) scale(1.2); }
+        }
+
+        /* Brawler Sprite */
+        .character-sprite.brawler {
+            background: #ff0000;
+            box-shadow: 0 10px 30px rgba(255, 0, 0, 0.6);
+            position: relative;
+        }
+
+        .character-sprite.brawler::before,
+        .character-sprite.brawler::after {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: #00008b;
+            border-radius: 50%;
+            top: 40%;
+        }
+
+        .character-sprite.brawler::before {
+            left: 30%;
+        }
+
+        .character-sprite.brawler::after {
+            right: 30%;
+        }
+
+        /* Wound marks on brawler */
+        .brawler-wounds {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
+
+        .brawler-wounds::before,
+        .brawler-wounds::after {
+            content: '';
+            position: absolute;
+            background: #8b0000;
+            box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+        }
+
+        .brawler-wounds::before {
+            width: 20px;
+            height: 3px;
+            top: 30%;
+            left: 15%;
+            transform: rotate(-20deg);
+        }
+
+        .brawler-wounds::after {
+            width: 15px;
+            height: 3px;
+            top: 55%;
+            right: 20%;
+            transform: rotate(15deg);
+        }
+
+        /* Rissa effect - chaos animation */
+        .rissa-effect {
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2.5rem;
+            animation: rissa-chaos 0.5s ease-in-out infinite;
+            filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.8));
+        }
+
+        @keyframes rissa-chaos {
+            0%, 100% { transform: translateX(-50%) rotate(-10deg) scale(1); }
+            50% { transform: translateX(-50%) rotate(10deg) scale(1.2); }
+        }
+
+        /* Provocative stance indicator */
+        .provocative-stance {
+            position: absolute;
+            top: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2rem;
+            animation: provocative-pulse 1s ease-in-out infinite;
+            filter: drop-shadow(0 0 8px rgba(255, 165, 0, 0.8));
+        }
+
+        @keyframes provocative-pulse {
+            0%, 100% { transform: translateX(-50%) scale(1); opacity: 1; }
+            50% { transform: translateX(-50%) scale(1.3); opacity: 0.7; }
+        }
+
+        /* Rage buff effect */
+        .rage-aura {
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            border: 3px solid #ff4500;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(255, 69, 0, 0.9), inset 0 0 20px rgba(255, 69, 0, 0.4);
+            animation: rage-pulse 1s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        @keyframes rage-pulse {
+            0%, 100% { 
+                box-shadow: 0 0 30px rgba(255, 69, 0, 0.9), inset 0 0 20px rgba(255, 69, 0, 0.4);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 50px rgba(255, 69, 0, 1), inset 0 0 30px rgba(255, 69, 0, 0.6);
+                transform: scale(1.05);
+            }
+        }
+
+        /* Angel Halo */
+        .angel-halo {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 12px;
+            border: 3px solid;
+            border-radius: 50%;
+            animation: halo-float 3s ease-in-out infinite;
+            filter: brightness(1.5);
+        }
+
+        @keyframes halo-float {
+            0%, 100% { 
+                transform: translateX(-50%) translateY(0px);
+                opacity: 0.8;
+            }
+            50% { 
+                transform: translateX(-50%) translateY(-5px);
+                opacity: 1;
+            }
+        }
+
+        /* Demon Horns */
+        .demon-horns {
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            height: 20px;
+        }
+
+        .demon-horns::before,
+        .demon-horns::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 20px solid;
+            filter: brightness(0.6);
+        }
+
+        .demon-horns::before {
+            left: 10%;
+            transform: rotate(-15deg);
+        }
+
+        .demon-horns::after {
+            right: 10%;
+            transform: rotate(15deg);
+        }
+
+        /* Defensive Sword Icon */
+        .defensive-sword {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 50px;
+            z-index: 10;
+            animation: sword-float 2s ease-in-out infinite;
+        }
+
+        @keyframes sword-float {
+            0%, 100% { transform: translateX(-50%) translateY(0px); }
+            50% { transform: translateX(-50%) translateY(-5px); }
+        }
+
+        .defensive-sword::before {
+            content: '⚔️';
+            font-size: 2.5rem;
+            filter: drop-shadow(0 0 10px var(--neon-blue));
+        }
+
+        .character-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--neon-blue);
+        }
+
+        .enemy .character-name {
+            color: var(--enemy-red);
+        }
+
+        .character-hp {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        .hp-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .hp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-blue));
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+
+        .enemy .hp-fill {
+            background: linear-gradient(90deg, var(--enemy-red), #ff6b00);
+            box-shadow: 0 0 10px var(--enemy-red);
+        }
+
+        /* Shield bar - appears below HP bar when ally has a shield */
+        .shield-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(135, 206, 235, 0.2);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 5px;
+            border: 1px solid rgba(135, 206, 235, 0.4);
+            position: relative;
+        }
+
+        .shield-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4dd0e1, #87ceeb);
+            transition: width 0.5s ease;
+            box-shadow: 0 0 8px rgba(135, 206, 235, 0.8);
+            position: relative;
+            animation: shield-shimmer 2s ease-in-out infinite;
+        }
+
+        @keyframes shield-shimmer {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.3); }
+        }
+
+        .shield-text {
+            font-size: 0.75rem;
+            color: #87ceeb;
+            margin-top: 3px;
+            text-align: center;
+            font-weight: 600;
+            text-shadow: 0 0 5px rgba(135, 206, 235, 0.5);
+        }
+
+        /* Status effects display */
+        .status-effects {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .status-icon {
+            font-size: 1.2rem;
+            animation: status-bounce 1s ease-in-out infinite;
+        }
+
+        .status-icon.buff {
+            filter: drop-shadow(0 0 5px rgba(57, 255, 20, 0.8));
+        }
+
+        .status-icon.debuff {
+            filter: drop-shadow(0 0 5px rgba(138, 43, 226, 0.8));
+        }
+
+        @keyframes status-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+
+        .moves-panel {
+            background: rgba(10, 5, 20, 0.9);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 40px;
+            border: 3px solid var(--neon-green);
+            box-shadow: 0 0 40px rgba(57, 255, 20, 0.3);
+            min-height: 250px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .moves-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(57, 255, 20, 0.1), transparent);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% { left: -100%; }
+            100% { left: 200%; }
+        }
+
+        .moves-panel h3 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--neon-green);
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .moves-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .move-button {
+            background: linear-gradient(135deg, rgba(57, 255, 20, 0.2), rgba(0, 243, 255, 0.2));
+            border: 2px solid var(--neon-blue);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Orbitron', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .move-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.3), transparent);
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            transition: width 0.6s ease, height 0.6s ease;
+        }
+
+        .move-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .move-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 243, 255, 0.5);
+            border-color: var(--neon-green);
+        }
+
+        .move-button:active {
+            transform: scale(0.95);
+        }
+
+        .move-button.used {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(50%);
+        }
+
+        .move-button.on-cooldown {
+            opacity: 0.6;
+            cursor: not-allowed;
+            border-color: #666;
+        }
+
+        .move-button .cooldown-text {
+            font-size: 0.8rem;
+            color: var(--neon-pink);
+            display: block;
+            margin-top: 5px;
+        }
+
+        .move-description {
+            margin-top: 25px;
+            padding: 20px;
+            background: rgba(0, 243, 255, 0.1);
+            border: 2px solid var(--neon-blue);
+            border-radius: 12px;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--neon-blue);
+            font-size: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .move-description.empty {
+            color: #666;
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .battle-log {
+            background: rgba(10, 5, 20, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 30px;
+            border: 2px solid var(--neon-pink);
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 0 30px rgba(255, 0, 255, 0.2);
+        }
+
+        .battle-log h4 {
+            color: var(--neon-pink);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .log-entry {
+            padding: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--neon-blue);
+            background: rgba(0, 243, 255, 0.1);
+            border-radius: 5px;
+            animation: log-appear 0.5s ease;
+        }
+
+        @keyframes log-appear {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .turn-indicator {
+            text-align: center;
+            font-size: 1.5rem;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 0, 255, 0.2);
+            border-radius: 10px;
+            border: 2px solid var(--neon-pink);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            animation: turn-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes turn-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 0, 255, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(255, 0, 255, 0.6); }
+        }
+
+        /* Wave counter */
+        .wave-counter {
+            text-align: center;
+            font-size: 2rem;
+            margin: 25px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(255, 0, 85, 0.3), rgba(255, 0, 255, 0.3));
+            border-radius: 15px;
+            border: 3px solid var(--enemy-red);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            animation: wave-pulse 2.5s ease-in-out infinite;
+            box-shadow: 0 0 30px rgba(255, 0, 85, 0.4);
+        }
+
+        @keyframes wave-pulse {
+            0%, 100% { 
+                transform: scale(1);
+                box-shadow: 0 0 30px rgba(255, 0, 85, 0.4);
+            }
+            50% { 
+                transform: scale(1.03);
+                box-shadow: 0 0 50px rgba(255, 0, 85, 0.7);
+            }
+        }
+
+        .wave-counter .wave-number {
+            color: var(--neon-green);
+            font-size: 2.5rem;
+            text-shadow: 0 0 20px var(--neon-green);
+            display: inline-block;
+            animation: wave-number-glow 1.5s ease-in-out infinite;
+        }
+
+        @keyframes wave-number-glow {
+            0%, 100% { text-shadow: 0 0 20px var(--neon-green); }
+            50% { text-shadow: 0 0 40px var(--neon-green), 0 0 60px var(--neon-green); }
+        }
+
+        .no-selection {
+            text-align: center;
+            color: #666;
+            font-size: 1.1rem;
+            padding: 40px;
+        }
+
+        .battle-log::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .battle-log::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        .battle-log::-webkit-scrollbar-thumb {
+            background: var(--neon-pink);
+            border-radius: 10px;
+        }
+
+        .battle-log::-webkit-scrollbar-thumb:hover {
+            background: var(--neon-blue);
+        }
+
+        @keyframes hit-flash {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(2) hue-rotate(90deg); }
+        }
+
+        .hit-animation {
+            animation: hit-flash 0.3s ease;
+        }
+
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 0, 30, 0.95);
+            padding: 50px 80px;
+            border-radius: 20px;
+            border: 4px solid var(--neon-green);
+            text-align: center;
+            z-index: 1000;
+            animation: game-over-appear 0.5s ease;
+            box-shadow: 0 0 60px rgba(57, 255, 20, 0.6);
+        }
+
+        @keyframes game-over-appear {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .game-over h2 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: var(--neon-green);
+            font-family: 'Bungee', cursive;
+        }
+
+        /* Target Selection Modal */
+        .target-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            animation: modal-appear 0.3s ease;
+        }
+
+        @keyframes modal-appear {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .target-modal-content {
+            background: rgba(10, 5, 20, 0.95);
+            border: 3px solid var(--neon-pink);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            box-shadow: 0 0 60px rgba(255, 0, 255, 0.5);
+            animation: modal-content-appear 0.4s ease;
+        }
+
+        @keyframes modal-content-appear {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .target-modal h3 {
+            font-size: 1.8rem;
+            color: var(--neon-pink);
+            text-align: center;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .target-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .target-button {
+            background: linear-gradient(135deg, rgba(255, 0, 85, 0.3), rgba(255, 0, 255, 0.3));
+            border: 2px solid var(--neon-pink);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Orbitron', monospace;
+            text-align: center;
+        }
+
+        .target-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255, 0, 255, 0.6);
+            border-color: var(--neon-green);
+            background: linear-gradient(135deg, rgba(255, 0, 85, 0.5), rgba(255, 0, 255, 0.5));
+        }
+
+        .target-button.ally-target {
+            background: linear-gradient(135deg, rgba(0, 243, 255, 0.3), rgba(57, 255, 20, 0.3));
+            border-color: var(--neon-blue);
+        }
+
+        .target-button.ally-target:hover {
+            background: linear-gradient(135deg, rgba(0, 243, 255, 0.5), rgba(57, 255, 20, 0.5));
+            border-color: var(--neon-green);
+        }
+
+        .cancel-button {
+            background: rgba(255, 0, 0, 0.3);
+            border: 2px solid #ff4444;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Orbitron', monospace;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .cancel-button:hover {
+            background: rgba(255, 0, 0, 0.5);
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 1024px) {
+            .battle-arena {
+                flex-direction: column;
+                gap: 30px;
+            }
+
+            .team-section {
+                flex: 1;
+                width: 100%;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .moves-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>⚔️ Battle Arena ⚔️</h1>
+
+        <div class="turn-indicator" id="turnIndicator">
+            Seleziona un alleato per iniziare
+        </div>
+
+        <div class="battle-arena">
+            <div class="team-section allies-section">
+                <h2 class="team-title">👥 I Tuoi Alleati</h2>
+                <div class="characters-grid" id="alliesGrid"></div>
+            </div>
+
+            <div class="team-section enemies-section">
+                <h2 class="team-title">💀 Nemici</h2>
+                <div class="characters-grid" id="enemiesGrid"></div>
+            </div>
+        </div>
+
+        <div class="wave-counter" id="waveCounter">
+            🌊 Ondata <span class="wave-number" id="waveNumber">1</span> 🌊
+        </div>
+
+        <div class="moves-panel" id="movesPanel">
+            <div class="no-selection">
+                Clicca su un alleato per vedere le sue mosse
+            </div>
+        </div>
+
+        <div class="battle-log" id="battleLog">
+            <h4>📜 Registro di Battaglia</h4>
+            <div id="logEntries"></div>
+        </div>
+    </div>
+
+    <script>
+        const gameState = {
+            allies: [],
+            enemies: [],
+            selectedAlly: null,
+            selectedMove: null,
+            movesUsedThisTurn: 0,
+            maxMovesPerTurn: 2,
+            turn: 'player',
+            turnCount: 0,
+            waveNumber: 1,
+            knightData: {
+                swingDamage: 25,
+                lastHpCheck: 80,
+                chargeLastUsed: -3,
+                defensiveStance: null // null or { protectedAlly: 'ally_id' or null }
+            },
+            witchData: {
+                nitroCooldowns: {}, // { allyId: lastUsedTurn }
+                cyanideCooldowns: {} // { enemyId: lastUsedTurn }
+            },
+            squireData: {
+                immunityLastUsed: -3,
+                tauntActive: false
+            },
+            brawlerData: {
+                rissaLastUsed: -10,
+                rissaActive: false,
+                rissaTurnsRemaining: 0,
+                provocativeStanceActive: false,
+                provocativeStanceLastUsed: -3,
+                wasTriggered: false, // Track if provocative stance was actually triggered
+                rageBuff: 0 // Turns remaining for rage buff
+            },
+            statusEffects: {
+                nitroBuffs: {}, // { allyId: turnsRemaining }
+                cyanideDebuffs: {}, // { enemyId: turnsRemaining }
+                shields: {}, // { allyId: shieldHP }
+                immunity: {} // { allyId: turnsRemaining }
+            },
+            stunnedEnemies: []
+        };
+
+        function initGame() {
+            // Create The Knight (Ally 1)
+            gameState.allies.push({
+                id: 'ally_knight',
+                name: 'Il Cavaliere',
+                class: 'knight',
+                hp: 80,
+                maxHp: 80,
+                moves: [
+                    { 
+                        name: 'Swing', 
+                        type: 'offensive',
+                        description: '⚔️ Un fendente potente! Danni attuali: ' + gameState.knightData.swingDamage + '. +5 ogni uso (max 50). Si resetta se HP non al massimo.',
+                        special: 'knight_swing'
+                    },
+                    { 
+                        name: 'Posa Difensiva', 
+                        type: 'defensive',
+                        description: '🛡️ Posizione difensiva! Riflette 35 danni al prossimo attaccante. Può proteggere un alleato.',
+                        special: 'knight_defense'
+                    },
+                    { 
+                        name: 'Carica', 
+                        type: 'offensive',
+                        description: '💥 Carica devastante! 50 danni + stordimento 1 turno. 10 danni a sé. CD: 3 turni.',
+                        special: 'knight_charge',
+                        cooldown: 3
+                    }
+                ]
+            });
+
+            // Create The Witch (Ally 2)
+            gameState.allies.push({
+                id: 'ally_witch',
+                name: 'La Strega',
+                class: 'witch',
+                hp: 100,
+                maxHp: 100,
+                moves: [
+                    { 
+                        name: 'Splash', 
+                        type: 'support',
+                        description: '💧 Cura un alleato o te stessa di 25 HP.',
+                        special: 'witch_splash'
+                    },
+                    { 
+                        name: 'Nitro', 
+                        type: 'buff',
+                        description: '⚡ Potenzia un alleato! +30% danni per 2 turni. CD: 3 turni per alleato.',
+                        special: 'witch_nitro',
+                        cooldown: 3
+                    },
+                    { 
+                        name: 'Cianuro', 
+                        type: 'debuff',
+                        description: '☠️ Avvelena un nemico! -30% danni per 2 turni. CD: 3 turni per nemico.',
+                        special: 'witch_cyanide',
+                        cooldown: 3
+                    }
+                ]
+            });
+
+            // Create The Squire (Ally 3)
+            gameState.allies.push({
+                id: 'ally_squire',
+                name: 'Lo Scudiero',
+                class: 'squire',
+                hp: 200,
+                maxHp: 200,
+                moves: [
+                    { 
+                        name: 'Rafforzati!', 
+                        type: 'shield',
+                        description: '🛡️ Crea uno scudo di 20 HP. Se distrutto, riflette 30 danni all\'attaccante.',
+                        special: 'squire_shield'
+                    },
+                    { 
+                        name: 'Cuore Di Titanio', 
+                        type: 'immunity',
+                        description: '✨ Immunità totale per 1 turno! CD: 3 turni.',
+                        special: 'squire_immunity',
+                        cooldown: 3
+                    },
+                    { 
+                        name: 'Provocazione', 
+                        type: 'taunt',
+                        description: '💢 Attira tutti gli attacchi nemici su di te per il prossimo turno!',
+                        special: 'squire_taunt'
+                    }
+                ]
+            });
+
+            // Create The Brawler (Ally 4)
+            gameState.allies.push({
+                id: 'ally_brawler',
+                name: 'Il Rissoso',
+                class: 'brawler',
+                hp: 120,
+                maxHp: 120,
+                moves: [
+                    { 
+                        name: 'Rissa!', 
+                        type: 'chaos',
+                        description: '💥 CAOS TOTALE! Nemici storditi 3 turni, 20 danni/turno. 10 danni/turno a sé. CD: 10 turni.',
+                        special: 'brawler_rissa',
+                        cooldown: 10
+                    },
+                    { 
+                        name: 'Me Stai A M\'brutti?', 
+                        type: 'counter',
+                        description: '😡 Posa provocatoria! Se colpito, +50% danni per 3 turni. CD: 3 turni solo se attivato.',
+                        special: 'brawler_counter'
+                    },
+                    { 
+                        name: 'N\'Destro', 
+                        type: 'offensive',
+                        description: '👊 Pugno imprevedibile! 10-40 danni a un nemico a scelta.',
+                        special: 'brawler_punch'
+                    }
+                ]
+            });
+
+            renderCharacters();
+            addLog('⚔️ La battaglia inizia!');
+            spawnWave();
+        }
+
+        function spawnWave() {
+            // Clear existing enemies
+            gameState.enemies = [];
+            
+            // Calculate number of enemies based on wave
+            // Wave 1-3: 1-2 enemies
+            // Wave 4-7: 1-3 enemies
+            // Wave 8+: 2-4 enemies
+            let minEnemies, maxEnemies;
+            if (gameState.waveNumber <= 3) {
+                minEnemies = 1;
+                maxEnemies = 2;
+            } else if (gameState.waveNumber <= 7) {
+                minEnemies = 1;
+                maxEnemies = 3;
+            } else {
+                minEnemies = 2;
+                maxEnemies = 4;
+            }
+            
+            const numEnemies = Math.floor(Math.random() * (maxEnemies - minEnemies + 1)) + minEnemies;
+            
+            // Generate enemies with scaling HP
+            for (let i = 0; i < numEnemies; i++) {
+                // Calculate HP based on wave with randomness
+                let minHP, maxHP;
+                
+                if (gameState.waveNumber <= 2) {
+                    minHP = 50;
+                    maxHP = 70;
+                } else if (gameState.waveNumber <= 5) {
+                    minHP = 60;
+                    maxHP = 100;
+                } else if (gameState.waveNumber <= 10) {
+                    minHP = 80;
+                    maxHP = 150;
+                } else if (gameState.waveNumber <= 15) {
+                    minHP = 100;
+                    maxHP = 220;
+                } else if (gameState.waveNumber <= 20) {
+                    minHP = 150;
+                    maxHP = 300;
+                } else {
+                    minHP = 200;
+                    maxHP = 400;
+                }
+                
+                // Add some randomness - small chance of getting much stronger enemy
+                if (Math.random() < 0.15) { // 15% chance
+                    maxHP = Math.min(400, maxHP + 50);
+                }
+                
+                const baseHP = Math.floor(Math.random() * (maxHP - minHP + 1)) + minHP;
+                
+                // Calculate damage based on wave (scales slower than HP)
+                const baseDamage = 12 + Math.floor(gameState.waveNumber * 0.8);
+                
+                // Generate random body color for enemy
+                const bodyHue = Math.floor(Math.random() * 360); // 0-360 degrees
+                const saturation = 60 + Math.floor(Math.random() * 40); // 60-100%
+                const lightness = 45 + Math.floor(Math.random() * 15); // 45-60%
+                const bodyColor = `hsl(${bodyHue}, ${saturation}%, ${lightness}%)`;
+                
+                // Generate random eye color (independent from body)
+                const eyeHue = Math.floor(Math.random() * 360);
+                const eyeColor = `hsl(${eyeHue}, 80%, 50%)`;
+                
+                // Determine enemy type
+                let enemyType = 'zombie'; // Default
+                const typeRoll = Math.random();
+                
+                if (typeRoll < 0.08) { // 8% chance - Angel (rare)
+                    enemyType = 'angel';
+                } else if (typeRoll < 0.20) { // 12% chance - Demon (less rare than angels)
+                    enemyType = 'demon';
+                }
+                
+                // Apply type modifiers
+                let finalHP = baseHP;
+                let finalDamage = baseDamage;
+                let canBeHealed = true;
+                let healAmount = 0;
+                
+                if (enemyType === 'angel') {
+                    // Angels heal instead of damage (1/3 of zombie damage)
+                    healAmount = Math.floor(baseDamage / 3);
+                    finalDamage = 0;
+                } else if (enemyType === 'demon') {
+                    // Demons: 1.5x HP and damage, but half HP and can't be healed
+                    finalHP = Math.floor(baseHP * 0.5);
+                    finalDamage = Math.floor(baseDamage * 1.5);
+                    canBeHealed = false;
+                }
+                
+                // Calculate power level for adjective (average of HP and damage percentages)
+                const hpPercent = (finalHP / 400) * 100; // 400 is max HP
+                const damagePercent = (finalDamage / 40) * 100; // ~40 is high damage
+                const powerLevel = (hpPercent + damagePercent) / 2;
+                
+                let adjective = '';
+                if (powerLevel < 15) {
+                    adjective = 'Debole';
+                } else if (powerLevel < 35) {
+                    adjective = 'Combattivo';
+                } else if (powerLevel < 55) {
+                    adjective = 'Forte';
+                } else if (powerLevel < 75) {
+                    adjective = 'Tosto';
+                } else {
+                    adjective = 'Potente';
+                }
+                
+                // Generate lighter color for halo
+                const haloColor = `hsl(${bodyHue}, ${saturation}%, ${Math.min(lightness + 30, 90)}%)`;
+                
+                // Generate darker color for horns
+                const hornColor = `hsl(${bodyHue}, ${saturation}%, ${Math.max(lightness - 30, 10)}%)`;
+                
+                gameState.enemies.push({
+                    id: `enemy_${i}_wave${gameState.waveNumber}`,
+                    name: `${adjective} ${enemyType === 'zombie' ? 'Zombie' : enemyType === 'angel' ? 'Angelo' : 'Demone'} ${i + 1}`,
+                    hp: finalHP,
+                    maxHp: finalHP,
+                    type: enemyType,
+                    bodyColor: bodyColor,
+                    eyeColor: eyeColor,
+                    haloColor: haloColor,
+                    hornColor: hornColor,
+                    canBeHealed: canBeHealed,
+                    moves: enemyType === 'angel' ? [
+                        { name: 'Benedizione Curativa', heal: healAmount }
+                    ] : [
+                        { name: 'Attacco', damage: finalDamage }
+                    ]
+                });
+            }
+            
+            // Update wave counter display
+            document.getElementById('waveNumber').textContent = gameState.waveNumber;
+            
+            addLog(`🌊 ONDATA ${gameState.waveNumber} - ${numEnemies} ${numEnemies === 1 ? 'nemico' : 'nemici'} appaiono!`);
+            renderCharacters();
+        }
+
+        function renderCharacters() {
+            const alliesGrid = document.getElementById('alliesGrid');
+            const enemiesGrid = document.getElementById('enemiesGrid');
+
+            alliesGrid.innerHTML = '';
+            enemiesGrid.innerHTML = '';
+
+            gameState.allies.forEach(ally => {
+                const allyElement = createCharacterElement(ally, 'ally');
+                alliesGrid.appendChild(allyElement);
+            });
+
+            gameState.enemies.forEach(enemy => {
+                const enemyElement = createCharacterElement(enemy, 'enemy');
+                enemiesGrid.appendChild(enemyElement);
+            });
+        }
+
+        function createCharacterElement(character, type) {
+            const div = document.createElement('div');
+            div.className = `character ${type}`;
+            div.dataset.id = character.id;
+            
+            // Check if knight is protecting another ally (hide knight)
+            if (character.class === 'knight' && 
+                gameState.knightData.defensiveStance && 
+                gameState.knightData.defensiveStance.protectedAlly) {
+                div.classList.add('hidden-protecting');
+            }
+            
+            if (gameState.selectedAlly && gameState.selectedAlly.id === character.id) {
+                div.classList.add('selected');
+            }
+
+            const hpPercentage = (character.hp / character.maxHp) * 100;
+
+            // Create sprite HTML based on class
+            let spriteHTML = '';
+            if (character.class === 'knight') {
+                spriteHTML = `<div class="character-sprite knight"><div class="knight-plume"></div></div>`;
+            } else if (character.class === 'witch') {
+                spriteHTML = `<div class="character-sprite witch"><div class="witch-hat"></div></div>`;
+            } else if (character.class === 'squire') {
+                spriteHTML = `<div class="character-sprite squire"><div class="squire-shield">🛡️</div></div>`;
+            } else if (character.class === 'brawler') {
+                spriteHTML = `<div class="character-sprite brawler"><div class="brawler-wounds"></div></div>`;
+            } else if (type === 'enemy' && character.bodyColor) {
+                // Enemy with custom color and eyes
+                const eyeStyle = `background: ${character.eyeColor};`;
+                let specialHTML = '';
+                
+                if (character.type === 'angel') {
+                    specialHTML = `<div class="angel-halo" style="border-color: ${character.haloColor};"></div>`;
+                } else if (character.type === 'demon') {
+                    specialHTML = `<div class="demon-horns" style="border-bottom-color: ${character.hornColor};"></div>`;
+                }
+                
+                spriteHTML = `
+                    <div class="character-sprite default" style="background: ${character.bodyColor}; box-shadow: 0 10px 30px ${character.bodyColor}80;">
+                        ${specialHTML}
+                        <style>
+                            [data-id="${character.id}"] .character-sprite.default::before,
+                            [data-id="${character.id}"] .character-sprite.default::after {
+                                ${eyeStyle}
+                            }
+                        </style>
+                    </div>
+                `;
+            } else {
+                spriteHTML = `<div class="character-sprite default"></div>`;
+            }
+
+            // Add defensive sword if active
+            let defensiveSwordHTML = '';
+            if (gameState.knightData.defensiveStance) {
+                const stance = gameState.knightData.defensiveStance;
+                const knight = gameState.allies.find(a => a.class === 'knight');
+                
+                // Show sword if this character is protected, or if knight protects self
+                const isProtected = stance.protectedAlly === character.id || 
+                                  (stance.protectedAlly === null && character.id === knight.id);
+                
+                if (isProtected) {
+                    defensiveSwordHTML = '<div class="defensive-sword"></div>';
+                }
+            }
+
+            // Add shield barrier if active
+            let shieldBarrierHTML = '';
+            if (type === 'ally' && gameState.statusEffects.shields[character.id]) {
+                shieldBarrierHTML = `<div class="shield-barrier" title="Scudo: ${gameState.statusEffects.shields[character.id]} HP"></div>`;
+            }
+
+            // Add immunity aura if active
+            let immunityAuraHTML = '';
+            if (type === 'ally' && gameState.statusEffects.immunity[character.id]) {
+                immunityAuraHTML = '<div class="immunity-aura"></div>';
+            }
+
+            // Add taunt indicator if squire has taunt active
+            let tauntIndicatorHTML = '';
+            if (character.class === 'squire' && gameState.squireData.tauntActive) {
+                tauntIndicatorHTML = '<div class="taunt-indicator">💢</div>';
+            }
+
+            // Add Rissa effect on enemies if active
+            let rissaEffectHTML = '';
+            if (type === 'enemy' && gameState.brawlerData.rissaActive) {
+                rissaEffectHTML = '<div class="rissa-effect">💥</div>';
+            }
+
+            // Add provocative stance indicator if brawler has it active
+            let provocativeStanceHTML = '';
+            if (character.class === 'brawler' && gameState.brawlerData.provocativeStanceActive) {
+                provocativeStanceHTML = '<div class="provocative-stance">😡</div>';
+            }
+
+            // Add rage aura if brawler has rage buff
+            let rageAuraHTML = '';
+            if (character.class === 'brawler' && gameState.brawlerData.rageBuff > 0) {
+                rageAuraHTML = '<div class="rage-aura"></div>';
+            }
+
+            // Status effects
+            let statusHTML = '';
+            const statusEffects = [];
+            
+            // Check for stun
+            if (type === 'enemy' && gameState.stunnedEnemies.includes(character.id)) {
+                statusEffects.push({ icon: '😵', class: '' });
+            }
+            
+            // Check for Nitro buff (allies only)
+            if (type === 'ally' && gameState.statusEffects.nitroBuffs[character.id]) {
+                statusEffects.push({ icon: '⚡', class: 'buff' });
+            }
+            
+            // Check for Cyanide debuff (enemies only)
+            if (type === 'enemy' && gameState.statusEffects.cyanideDebuffs[character.id]) {
+                statusEffects.push({ icon: '☠️', class: 'debuff' });
+            }
+
+            // Check for Shield (allies only)
+            if (type === 'ally' && gameState.statusEffects.shields[character.id]) {
+                statusEffects.push({ icon: '🛡️', class: 'buff' });
+            }
+
+            // Check for Immunity (allies only)
+            if (type === 'ally' && gameState.statusEffects.immunity[character.id]) {
+                statusEffects.push({ icon: '✨', class: 'buff' });
+            }
+
+            // Check for Rage buff (brawler only)
+            if (character.class === 'brawler' && gameState.brawlerData.rageBuff > 0) {
+                statusEffects.push({ icon: '😤', class: 'buff' });
+            }
+            
+            if (statusEffects.length > 0) {
+                statusHTML = `<div class="status-effects">${statusEffects.map(s => `<span class="status-icon ${s.class}">${s.icon}</span>`).join('')}</div>`;
+            }
+
+            // Generate shield bar HTML if ally has a shield
+            let shieldBarHTML = '';
+            if (type === 'ally' && gameState.statusEffects.shields[character.id]) {
+                const shieldHP = gameState.statusEffects.shields[character.id];
+                const maxShieldDisplay = 100; // For display purposes, normalize to 100 max
+                const shieldPercentage = Math.min((shieldHP / maxShieldDisplay) * 100, 100);
+                
+                shieldBarHTML = `
+                    <div class="shield-bar">
+                        <div class="shield-fill" style="width: ${shieldPercentage}%"></div>
+                    </div>
+                    <div class="shield-text">🛡️ Scudo: ${shieldHP} HP</div>
+                `;
+            }
+
+            div.innerHTML = `
+                ${rageAuraHTML}
+                ${immunityAuraHTML}
+                ${defensiveSwordHTML}
+                ${shieldBarrierHTML}
+                ${tauntIndicatorHTML}
+                ${rissaEffectHTML}
+                ${provocativeStanceHTML}
+                ${spriteHTML}
+                <div class="character-name">${character.name}</div>
+                <div class="character-hp">HP: ${character.hp}/${character.maxHp}</div>
+                <div class="hp-bar">
+                    <div class="hp-fill" style="width: ${hpPercentage}%"></div>
+                </div>
+                ${shieldBarHTML}
+                ${statusHTML}
+            `;
+
+            if (type === 'ally') {
+                div.addEventListener('click', () => selectAlly(character));
+            }
+
+            return div;
+        }
+
+        function selectAlly(ally) {
+            if (ally.hp <= 0) {
+                addLog(`❌ ${ally.name} è KO e non può combattere!`);
+                return;
+            }
+
+            gameState.selectedAlly = ally;
+            renderCharacters();
+            renderMovesPanel();
+            addLog(`✨ Hai selezionato ${ally.name}`);
+        }
+
+        function renderMovesPanel() {
+            const panel = document.getElementById('movesPanel');
+
+            if (!gameState.selectedAlly) {
+                panel.innerHTML = '<div class="no-selection">Clicca su un alleato per vedere le sue mosse</div>';
+                return;
+            }
+
+            const movesRemaining = gameState.maxMovesPerTurn - gameState.movesUsedThisTurn;
+
+            panel.innerHTML = `
+                <h3>🎯 Mosse di ${gameState.selectedAlly.name}</h3>
+                <p style="text-align: center; margin-bottom: 20px; color: var(--neon-pink);">
+                    Mosse rimanenti: ${movesRemaining}/${gameState.maxMovesPerTurn}
+                </p>
+                <div class="moves-grid" id="movesGrid"></div>
+                <div class="move-description empty" id="moveDescription">
+                    Passa il mouse sopra una mossa per vedere la descrizione
+                </div>
+            `;
+
+            const movesGrid = document.getElementById('movesGrid');
+            const descriptionBox = document.getElementById('moveDescription');
+
+            gameState.selectedAlly.moves.forEach((move) => {
+                const button = document.createElement('button');
+                button.className = 'move-button';
+                
+                let buttonText = move.name;
+                let isOnCooldown = false;
+
+                // Check cooldown for Carica
+                if (move.special === 'knight_charge') {
+                    const turnsSinceUsed = gameState.turnCount - gameState.knightData.chargeLastUsed;
+                    if (turnsSinceUsed < move.cooldown) {
+                        isOnCooldown = true;
+                        const turnsLeft = move.cooldown - turnsSinceUsed;
+                        buttonText += `<div class="cooldown-text">CD: ${turnsLeft}</div>`;
+                    }
+                }
+
+                // Check cooldown for Cuore Di Titanio
+                if (move.special === 'squire_immunity') {
+                    const turnsSinceUsed = gameState.turnCount - gameState.squireData.immunityLastUsed;
+                    if (turnsSinceUsed < move.cooldown) {
+                        isOnCooldown = true;
+                        const turnsLeft = move.cooldown - turnsSinceUsed;
+                        buttonText += `<div class="cooldown-text">CD: ${turnsLeft}</div>`;
+                    }
+                }
+
+                // Check cooldown for Rissa!
+                if (move.special === 'brawler_rissa') {
+                    const turnsSinceUsed = gameState.turnCount - gameState.brawlerData.rissaLastUsed;
+                    if (turnsSinceUsed < move.cooldown) {
+                        isOnCooldown = true;
+                        const turnsLeft = move.cooldown - turnsSinceUsed;
+                        buttonText += `<div class="cooldown-text">CD: ${turnsLeft}</div>`;
+                    }
+                }
+
+                // Check conditional cooldown for Me Stai A M'brutti? (only if it was triggered)
+                if (move.special === 'brawler_counter' && gameState.brawlerData.provocativeStanceLastUsed >= 0) {
+                    const turnsSinceUsed = gameState.turnCount - gameState.brawlerData.provocativeStanceLastUsed;
+                    // Only on cooldown if it was triggered (we check if rageBuff was activated)
+                    if (turnsSinceUsed < 3 && gameState.brawlerData.wasTriggered) {
+                        isOnCooldown = true;
+                        const turnsLeft = 3 - turnsSinceUsed;
+                        buttonText += `<div class="cooldown-text">CD: ${turnsLeft}</div>`;
+                    }
+                }
+
+                button.innerHTML = buttonText;
+                
+                // Update Swing description dynamically
+                let description = move.description;
+                if (move.special === 'knight_swing') {
+                    description = `⚔️ Un fendente potente! Danni attuali: ${gameState.knightData.swingDamage}. +5 ogni uso (max 50). Si resetta se HP non al massimo.`;
+                }
+
+                button.addEventListener('mouseenter', () => {
+                    descriptionBox.textContent = description;
+                    descriptionBox.classList.remove('empty');
+                });
+
+                button.addEventListener('mouseleave', () => {
+                    descriptionBox.textContent = 'Passa il mouse sopra una mossa per vedere la descrizione';
+                    descriptionBox.classList.add('empty');
+                });
+                
+                if (movesRemaining <= 0 || isOnCooldown) {
+                    button.classList.add(isOnCooldown ? 'on-cooldown' : 'used');
+                    button.disabled = true;
+                } else {
+                    button.addEventListener('click', () => selectMove(move));
+                }
+
+                movesGrid.appendChild(button);
+            });
+        }
+
+        function selectMove(move) {
+            if (gameState.movesUsedThisTurn >= gameState.maxMovesPerTurn) {
+                addLog('❌ Hai già usato tutte le mosse di questo turno!');
+                return;
+            }
+
+            if (!gameState.selectedAlly) return;
+
+            gameState.selectedMove = move;
+
+            // Handle different move types
+            if (move.type === 'offensive') {
+                showTargetSelection('enemy');
+            } else if (move.type === 'support') {
+                showTargetSelection('ally');
+            } else if (move.type === 'buff') {
+                // Witch Nitro - show allies with cooldown info
+                showWitchBuffTargetSelection();
+            } else if (move.type === 'debuff') {
+                // Witch Cyanide - show enemies with cooldown info
+                showWitchDebuffTargetSelection();
+            } else if (move.type === 'defensive') {
+                // Knight defensive stance - can choose ally or self
+                showDefensiveTargetSelection();
+            } else if (move.type === 'shield') {
+                // Squire shield - choose target
+                showSquireShieldTargetSelection();
+            } else if (move.type === 'immunity') {
+                // Squire immunity - choose target
+                showSquireImmunityTargetSelection();
+            } else if (move.type === 'taunt') {
+                // Squire taunt - activates immediately on self
+                executeSquireTaunt();
+            } else if (move.type === 'chaos') {
+                // Brawler Rissa - activates immediately, affects all enemies
+                executeBrawlerRissa();
+            } else if (move.type === 'counter') {
+                // Brawler counter stance - activates immediately on self
+                executeBrawlerCounter();
+            } else if (move.special === 'brawler_punch') {
+                // Brawler punch - choose enemy, random damage 10-40
+                showTargetSelection('enemy');
+            }
+        }
+
+        function showTargetSelection(targetType) {
+            const modal = document.createElement('div');
+            modal.className = 'target-modal';
+            modal.id = 'targetModal';
+
+            const isOffensive = targetType === 'enemy';
+            const targets = isOffensive ? 
+                gameState.enemies.filter(e => e.hp > 0) : 
+                gameState.allies.filter(a => a.hp > 0);
+
+            const title = isOffensive ? 
+                '🎯 Scegli il nemico da attaccare' : 
+                '💚 Scegli l\'alleato da aiutare';
+
+            modal.innerHTML = `
+                <div class="target-modal-content">
+                    <h3>${title}</h3>
+                    <div class="target-grid" id="targetGrid"></div>
+                    <button class="cancel-button" onclick="closeTargetSelection()">
+                        ❌ Annulla
+                    </button>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            const targetGrid = document.getElementById('targetGrid');
+            targets.forEach(target => {
+                const button = document.createElement('button');
+                button.className = `target-button ${isOffensive ? '' : 'ally-target'}`;
+                button.innerHTML = `
+                    <div style="font-size: 1.1rem; margin-bottom: 8px;">${target.name}</div>
+                    <div style="font-size: 0.9rem; color: #aaa;">HP: ${target.hp}/${target.maxHp}</div>
+                `;
+                button.addEventListener('click', () => executeMove(target));
+                targetGrid.appendChild(button);
+            });
+        }
+
+        function showDefensiveTargetSelection() {
+            const modal = document.createElement('div');
+            modal.className = 'target-modal';
+            modal.id = 'targetModal';
+
+            const allies = gameState.allies.filter(a => a.hp > 0);
+
+            modal.innerHTML = `
+                <div class="target-modal-content">
+                    <h3>🛡️ Proteggi te stesso o un alleato?</h3>
+                    <div class="target-grid" id="targetGrid"></div>
+                    <button class="cancel-button" onclick="closeTargetSelection()">
+                        ❌ Annulla
+                    </button>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            const targetGrid = document.getElementById('targetGrid');
+            
+            // Option to protect self
+            const selfButton = document.createElement('button');
+            selfButton.className = 'target-button ally-target';
+            selfButton.innerHTML = `
+                <div style="font-size: 1.1rem; margin-bottom: 8px;">Te Stesso</div>
+                <div style="font-size: 0.9rem; color: #aaa;">Difendi solo te</div>
+            `;
+            selfButton.addEventListener('click', () => executeDefensiveStance(null));
+            targetGrid.appendChild(selfButton);
+
+            // Options to protect allies
+            allies.forEach(ally => {
+                if (ally.id === gameState.selectedAlly.id) return; // Can't protect self through ally selection
+                
+                const button = document.createElement('button');
+                button.className = 'target-button ally-target';
+                button.innerHTML = `
+                    <div style="font-size: 1.1rem; margin-bottom: 8px;">${ally.name}</div>
+                    <div style="font-size: 0.9rem; color: #aaa;">HP: ${ally.hp}/${ally.maxHp}</div>
+                `;
+                button.addEventListener('click', () => executeDefensiveStance(ally.id));
+                targetGrid.appendChild(button);
+            });
+        }
+
+        function executeDefensiveStance(protectedAllyId) {
+            closeTargetSelection();
+            
+            gameState.knightData.defensiveStance = {
+                protectedAlly: protectedAllyId
+            };
+
+            if (protectedAllyId) {
+                const protected = gameState.allies.find(a => a.id === protectedAllyId);
+                addLog(`🛡️ ${gameState.selectedAlly.name} si mette in guardia davanti a ${protected.name}!`);
+            } else {
+                addLog(`🛡️ ${gameState.selectedAlly.name} assume una posa difensiva!`);
+            }
+
+            gameState.movesUsedThisTurn++;
+            gameState.selectedMove = null;
+            renderCharacters();
+            renderMovesPanel();
+
+            if (gameState.movesUsedThisTurn >= gameState.maxMovesPerTurn) {
+                setTimeout(enemyTurn, 1000);
+            }
+        }
+
+        function showWitchBuffTargetSelection() {
+            const modal = document.createElement('div');
+            modal.className = 'target-modal';
+            modal.id = 'targetModal';
+
+            const allies = gameState.allies.filter(a => a.hp > 0);
+
+            modal.innerHTML = `
+                <div class="target-modal-content">
+                    <h3>⚡ Scegli l'alleato da potenziare con Nitro</h3>
+                    <div class="target-grid" id="targetGrid"></div>
+                    <button class="cancel-button" onclick="closeTargetSelection()">
+                        ❌ Annulla
+                    </button>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            const targetGrid = document.getElementById('targetGrid');
+            
+            allies.forEach(ally => {
+                const button = document.createElement('button');
+                button.className = 'target-button ally-target';
+                
+                // Check cooldown for this specific ally
+                const lastUsed = gameState.witchData.nitroCooldowns[ally.id] || -999;
+                const turnsSince = gameState.turnCount - lastUsed;
+                const onCooldown = turnsSince < 3;
+                
+                let statusText = onCooldown ? 
+                    `<div style="color: #ff4444;">CD: ${3 - turnsSince} turni</div>` : 
+                    '<div style="color: #39ff14;">Disponibile</div>';
+                
+                button.innerHTML = `
+                    <div style="font-size: 1.1rem; margin-bottom: 8px;">${ally.name}</div>
+                    <div style="font-size: 0.9rem; color: #aaa;">HP: ${ally.hp}/${ally.maxHp}</div>
+                    ${statusText}
+                `;
+                
+                if (onCooldown) {
+                    button.style.opacity = '0.5';
+                    button.style.cursor = 'not-allowed';
+                } else {
+                    button.addEventListener('click', () => executeWitchNitro(ally.id));
+                }
+                
+                targetGrid.appendChild(button);
+            });
+        }
+
+        function showWitchDebuffTargetSelection() {
+            const modal = document.createElement('div');
+            modal.className = 'target-modal';
+            modal.id = 'targetModal';
+
+            const enemies = gameState.enemies.filter(e => e.hp > 0);
+
+            modal.innerHTML = `
+                <div class="target-modal-content">
+                    <h3>☠️ Scegli il nemico da avvelenare con Cianuro</h3>
+                    <div class="target-grid" id="targetGrid"></div>
+                    <button class="cancel-button" onclick="closeTargetSelection()">
+                        ❌ Annulla
+                    </button>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            const targetGrid = document.getElementById('targetGrid');
+            
+            enemies.forEach(enemy => {
+                const button = document.createElement('button');
+                button.className = 'target-button';
+                
+                // Check cooldown for this specific enemy
+                const lastUsed = gameState.witchData.cyanideCooldowns[enemy.id] || -999;
+                const turnsSince = gameState.turnCount - lastUsed;
+                const onCooldown = turnsSince < 3;
+                
+                let statusText = onCooldown ? 
+                    `<div style="color: #ff4444;">CD: ${3 - turnsSince} turni</div>` : 
+                    '<div style="color: #8b4ac9;">Disponibile</div>';
+                
+                button.innerHTML = `
+                    <div style="font-size: 1.1rem; margin-bottom: 8px;">${enemy.name}</div>
+                    <div style="font-size: 0.9rem; color: #aaa;">HP: ${enemy.hp}/${enemy.maxHp}</div>
+                    ${statusText}
+                `;
+                
+                if (onCooldown) {
+                    button.style.opacity = '0.5';
+                    button.style.cursor = 'not-allowed';
+                } else {
+                    button.addEventListener('click', () => executeWitchCyanide(enemy.id));
+                }
+                
+                targetGrid.appendChild(button);
+            });
+        }
+
+        function executeWitchNitro(allyId) {
+            closeTargetSelection();
+            
+            const ally = gameState.allies.find(a => a.id === allyId);
+            gameState.statusEffects.nitroBuffs[allyId] = 2; // Lasts 2 turns
+            gameState.witchData.nitroCooldowns[allyId] = gameState.turnCount;
+            
+            addLog(`⚡ ${gameState.selectedAlly.name} usa Nitro su ${ally.name}! Danni +30% per 2 turni!`);
+            
+            gameState.movesUsedThisTurn++;
+            gameState.selectedMove = null;
+            renderCharacters();
+            renderMovesPanel();
+
+            if (gameState.movesUsedThisTurn >= gameState.maxMovesPerTurn) {
+                setTimeout(enemyTurn, 1000);
+            }
+        }
+
+        function executeWitchCyanide(enemyId) {
+            closeTargetSelection();
+            
+            const enemy = gameState.enemies.find(e => e.id === enemyId);
+            gameState.statusEffects.cyanideDebuffs[enemyId] = 2; // Lasts 2 turns
+            gameState.witchData.cyanideCooldowns[enemyId] = gameState.turnCount;
+            
+            addLog(`☠️ ${gameState.selectedAlly.name} usa Cianuro su ${enemy.name}! Danni -30% per 2 turni!`);
+            
+            gameState.movesUsedThisTurn++;
+            gameState.selectedMove = null;
+            renderCharacters();
+            renderMovesPanel();
+
+            if (gameState.movesUsedThisTurn >= gameState.maxMovesPerTurn) {
+                setTimeout(enemyTurn, 1000);
+            }
+        }
+
+        function showSquireShieldTargetSelection() {
+            const modal = document.createElement('div');
+            modal.className = 'target-modal';
+            modal.id = 'targetModal';
+
+            const allies = gameState.allies.filter(a => a.hp > 0);
+
+            modal.innerHTML = `
+                <div class="target-modal-content">
+                    <h3>🛡️ Scegli chi riceverà lo scudo</h3>
+                    <div class="target-grid" id="targetGrid"></div>
+                    <button class="cancel-button" onclick="closeTargetSelection()">
+                        ❌ Annulla
+                    </button>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            const targetGrid = document.getElementById('targetGrid');
+            
+            allies.forEach(ally => {
+                const button = document.createElement('button');
+                button.className = 'target-button ally-target';
+                
+                let statusText = gameState.statusEffects.shields[ally.id] ? 
+                    `<div style="color: #39ff14;">Scudo: ${gameState.statusEffects.shields[ally.id]} HP</div>` : 
+                    '<div style="color: #aaa;">Nessuno scudo</div>';
+                
+                button.innerHTML = `
+                    <div style="font-size: 1.1rem; margin-bottom: 8px;">${ally.name}</div>
+                    <div style="font-size: 0.9rem; color: #aaa;">HP: ${ally.hp}/${ally.maxHp}</div>
+                    ${statusText}
+                `;
+                
+                button.addEventListener('click', () => executeSquireShield(ally.id));
+                targetGrid.appendChild(button);
+            });
+        }
+
+        function showSquireImmunityTargetSelection() {
+            const modal = document.createElement('div');
+            modal.className = 'target-modal';
+            modal.id = 'targetModal';
+
+            const allies = gameState.allies.filter(a => a.hp > 0);
+
+            modal.innerHTML = `
+                <div class="target-modal-content">
+                    <h3>✨ Scegli chi diventa immune</h3>
+                    <div class="target-grid" id="targetGrid"></div>
+                    <button class="cancel-button" onclick="closeTargetSelection()">
+                        ❌ Annulla
+                    </button>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            const targetGrid = document.getElementById('targetGrid');
+            
+            allies.forEach(ally => {
+                const button = document.createElement('button');
+                button.className = 'target-button ally-target';
+                
+                button.innerHTML = `
+                    <div style="font-size: 1.1rem; margin-bottom: 8px;">${ally.name}</div>
+                    <div style="font-size: 0.9rem; color: #aaa;">HP: ${ally.hp}/${ally.maxHp}</div>
+                `;
+                
+                button.addEventListener('click', () => executeSquireImmunity(ally.id));
+                targetGrid.appendChild(button);
+            });
+        }
+
+        function executeSquireShield(allyId) {
+            closeTargetSelection();
+            
+            const ally = gameState.allies.find(a => a.id === allyId);
+            
+            // Add or increase shield
+            if (gameState.statusEffects.shields[allyId]) {
+                gameState.statusEffects.shields[allyId] += 20;
+            } else {
+                gameState.statusEffects.shields[allyId] = 20;
+            }
+            
+            addLog(`🛡️ ${gameState.selectedAlly.name} usa Rafforzati! su ${ally.name}! Scudo: ${gameState.statusEffects.shields[allyId]} HP!`);
+            
+            gameState.movesUsedThisTurn++;
+            gameState.selectedMove = null;
+            renderCharacters();
+            renderMovesPanel();
+
+            if (gameState.movesUsedThisTurn >= gameState.maxMovesPerTurn) {
+                setTimeout(enemyTurn, 1000);
+            }
+        }
+
+        function executeSquireImmunity(allyId) {
+            closeTargetSelection();
+            
+            const ally = gameState.allies.find(a => a.id === allyId);
+            gameState.statusEffects.immunity[allyId] = 1; // Lasts 1 turn
+            gameState.squireData.immunityLastUsed = gameState.turnCount;
+            
+            addLog(`✨ ${gameState.selectedAlly.name} usa Cuore Di Titanio su ${ally.name}! Immune per 1 turno!`);
+            
+            gameState.movesUsedThisTurn++;
+            gameState.selectedMove = null;
+            renderCharacters();
+            renderMovesPanel();
+
+            if (gameState.movesUsedThisTurn >= gameState.maxMovesPerTurn) {
+                setTimeout(enemyTurn, 1000);
+            }
+        }
+
+        function executeSquireTaunt() {
+            gameState.squireData.tauntActive = true;
+            
+            addLog(`💢 ${gameState.selectedAlly.name} usa Provocazione! I nemici lo attaccheranno!`);
+            
+            gameState.movesUsedThisTurn++;
+            gameState.selectedMove = null;
+            renderCharacters();
+            renderMovesPanel();
+
+            if (gameState.movesUsedThisTurn >= gameState.maxMovesPerTurn) {
+                setTimeout(enemyTurn, 1000);
+            }
+        }
+
+        function executeBrawlerRissa() {
+            gameState.brawlerData.rissaActive = true;
+            gameState.brawlerData.rissaTurnsRemaining = 3;
+            gameState.brawlerData.rissaLastUsed = gameState.turnCount;
+            
+            addLog(`💥💥💥 ${gameState.selectedAlly.name} scatena una RISSA! Tutti i nemici sono storditi per 3 turni!`);
+            
+            gameState.movesUsedThisTurn++;
+            gameState.selectedMove = null;
+            renderCharacters();
+            renderMovesPanel();
+
+            if (gameState.movesUsedThisTurn >= gameState.maxMovesPerTurn) {
+                setTimeout(enemyTurn, 1000);
+            }
+        }
+
+        function executeBrawlerCounter() {
+            gameState.brawlerData.provocativeStanceActive = true;
+            // Don't set cooldown yet - only if it gets triggered
+            
+            addLog(`😡 ${gameState.selectedAlly.name} assume una posa provocatoria! Se colpito, diventerà furioso!`);
+            
+            gameState.movesUsedThisTurn++;
+            gameState.selectedMove = null;
+            renderCharacters();
+            renderMovesPanel();
+
+            if (gameState.movesUsedThisTurn >= gameState.maxMovesPerTurn) {
+                setTimeout(enemyTurn, 1000);
+            }
+        }
+
+        function executeBrawlerPunch(target) {
+            // Random damage between 10 and 40
+            let baseDamage = Math.floor(Math.random() * 31) + 10; // 10-40
+            
+            // Apply rage buff if active
+            if (gameState.brawlerData.rageBuff > 0) {
+                baseDamage = Math.floor(baseDamage * 1.5); // +50% damage
+                addLog(`😤 Rabbia attiva! N'Destro potenziato!`);
+            }
+            
+            target.hp = Math.max(0, target.hp - baseDamage);
+            
+            addLog(`👊 ${gameState.selectedAlly.name} tira un N'Destro a ${target.name} causando ${baseDamage} danni!`);
+            applyHitAnimation(target);
+        }
+
+        function closeTargetSelection() {
+            const modal = document.getElementById('targetModal');
+            if (modal) {
+                modal.remove();
+            }
+            gameState.selectedMove = null;
+        }
+
+        function executeMove(target) {
+            const move = gameState.selectedMove;
+            if (!move || !gameState.selectedAlly) return;
+
+            closeTargetSelection();
+
+            // Handle knight special moves
+            if (move.special === 'knight_swing') {
+                executeKnightSwing(target);
+            } else if (move.special === 'knight_charge') {
+                executeKnightCharge(target);
+            } else if (move.special === 'brawler_punch') {
+                executeBrawlerPunch(target);
+            } else if (move.special === 'witch_splash') {
+                // Witch Splash - heal 25 HP
+                const healAmount = 25;
+                target.hp = Math.min(target.maxHp, target.hp + healAmount);
+                addLog(`💧 ${gameState.selectedAlly.name} usa Splash su ${target.name} ripristinando ${healAmount} HP!`);
+                applyHitAnimation(target);
+            } else if (move.type === 'offensive') {
+                // Default offensive move - apply Nitro buff and Rage buff if active
+                let baseDamage = move.name === 'Attacco Base' ? 15 : 25;
+                
+                // Check if attacker has Nitro buff
+                if (gameState.statusEffects.nitroBuffs[gameState.selectedAlly.id]) {
+                    baseDamage = Math.floor(baseDamage * 1.3); // +30% damage
+                    addLog(`⚡ Nitro attivo! Danno potenziato!`);
+                }
+                
+                // Check if attacker is brawler with rage buff
+                if (gameState.selectedAlly.class === 'brawler' && gameState.brawlerData.rageBuff > 0) {
+                    baseDamage = Math.floor(baseDamage * 1.5); // +50% damage
+                    addLog(`😤 Rabbia attiva! Danno potenziato!`);
+                }
+                
+                target.hp = Math.max(0, target.hp - baseDamage);
+                addLog(`⚔️ ${gameState.selectedAlly.name} usa ${move.name} su ${target.name} causando ${baseDamage} danni!`);
+                applyHitAnimation(target);
+            } else if (move.type === 'support') {
+                // Support move (heal) - default 10 HP
+                const healAmount = 10;
+                target.hp = Math.min(target.maxHp, target.hp + healAmount);
+                addLog(`💚 ${gameState.selectedAlly.name} cura ${target.name} ripristinando ${healAmount} HP!`);
+                applyHitAnimation(target);
+            }
+
+            gameState.movesUsedThisTurn++;
+            gameState.selectedMove = null;
+            renderCharacters();
+            renderMovesPanel();
+
+            if (gameState.movesUsedThisTurn >= gameState.maxMovesPerTurn) {
+                setTimeout(enemyTurn, 1000);
+            }
+
+            checkGameOver();
+        }
+
+        function executeKnightSwing(target) {
+            let damage = gameState.knightData.swingDamage;
+            
+            // Apply Nitro buff if knight has it
+            if (gameState.statusEffects.nitroBuffs['ally_knight']) {
+                damage = Math.floor(damage * 1.3);
+                addLog(`⚡ Nitro attivo! Swing potenziato!`);
+            }
+            
+            target.hp = Math.max(0, target.hp - damage);
+            
+            addLog(`⚔️ ${gameState.selectedAlly.name} usa Swing su ${target.name} causando ${damage} danni!`);
+            applyHitAnimation(target);
+
+            // Check if knight HP is at maximum
+            const knight = gameState.allies.find(a => a.class === 'knight');
+            if (knight.hp < knight.maxHp) {
+                // Not at full HP - reset Swing damage
+                if (gameState.knightData.swingDamage > 25) {
+                    addLog(`⚠️ Il Cavaliere non ha HP al massimo! Swing resettato a 25 danni.`);
+                }
+                gameState.knightData.swingDamage = 25;
+            } else {
+                // At full HP - increase damage for next use (cap at 50)
+                if (gameState.knightData.swingDamage < 50) {
+                    gameState.knightData.swingDamage = Math.min(50, gameState.knightData.swingDamage + 5);
+                }
+            }
+        }
+
+        function executeKnightCharge(target) {
+            const knight = gameState.selectedAlly;
+            
+            // Deal damage to target
+            target.hp = Math.max(0, target.hp - 50);
+            
+            // Deal self damage
+            knight.hp = Math.max(0, knight.hp - 10);
+            
+            // Stun target
+            if (target.hp > 0) {
+                gameState.stunnedEnemies.push(target.id);
+                addLog(`💥 ${knight.name} usa Carica! ${target.name} subisce 50 danni ed è stordito!`);
+            } else {
+                addLog(`💥 ${knight.name} usa Carica! ${target.name} subisce 50 danni ed è sconfitto!`);
+            }
+            
+            addLog(`🩸 ${knight.name} subisce 10 danni da Carica.`);
+            
+            applyHitAnimation(target);
+            
+            // Set cooldown
+            gameState.knightData.chargeLastUsed = gameState.turnCount;
+        }
+
+        function applyHitAnimation(character) {
+            const element = document.querySelector(`[data-id="${character.id}"]`);
+            if (element) {
+                element.classList.add('hit-animation');
+                setTimeout(() => element.classList.remove('hit-animation'), 300);
+            }
+        }
+
+        function enemyTurn() {
+            // Increment turn counter
+            gameState.turnCount++;
+            
+            // DO NOT clear defensive stance here - it should persist until triggered
+            
+            addLog('🔄 Turno dei nemici!');
+            document.getElementById('turnIndicator').textContent = '💀 Turno Nemici';
+
+            const aliveEnemies = gameState.enemies.filter(e => e.hp > 0);
+            let actionIndex = 0;
+
+            aliveEnemies.forEach((enemy) => {
+                setTimeout(() => {
+                    // Check if Rissa is active - all enemies are stunned and take damage
+                    if (gameState.brawlerData.rissaActive) {
+                        addLog(`💥 ${enemy.name} è nella RISSA e subisce 20 danni!`);
+                        enemy.hp = Math.max(0, enemy.hp - 20);
+                        applyHitAnimation(enemy);
+                        actionIndex++;
+                        
+                        if (actionIndex === aliveEnemies.length) {
+                            endEnemyTurn();
+                        }
+                        return;
+                    }
+
+                    // Check if enemy is stunned (from Charge)
+                    if (gameState.stunnedEnemies.includes(enemy.id)) {
+                        addLog(`😵 ${enemy.name} è stordito e non può attaccare!`);
+                        gameState.stunnedEnemies = gameState.stunnedEnemies.filter(id => id !== enemy.id);
+                        actionIndex++;
+                        
+                        if (actionIndex === aliveEnemies.length) {
+                            endEnemyTurn();
+                        }
+                        return;
+                    }
+
+                    const aliveAllies = gameState.allies.filter(a => a.hp > 0);
+                    if (aliveAllies.length === 0) {
+                        checkGameOver();
+                        return;
+                    }
+
+                    // Check if squire has taunt active - if so, target squire
+                    let target;
+                    if (gameState.squireData.tauntActive) {
+                        target = gameState.allies.find(a => a.class === 'squire' && a.hp > 0);
+                        if (!target) {
+                            // Squire is dead, pick random target
+                            target = aliveAllies[Math.floor(Math.random() * aliveAllies.length)];
+                        }
+                    } else {
+                        target = aliveAllies[Math.floor(Math.random() * aliveAllies.length)];
+                    }
+                    
+                    const move = enemy.moves[0];
+                    
+                    // Check if this is an angel - they heal instead of attack
+                    if (enemy.type === 'angel' && move.heal) {
+                        // Angel heals a random wounded enemy
+                        const woundedEnemies = gameState.enemies.filter(e => e.hp > 0 && e.hp < e.maxHp && e.canBeHealed);
+                        
+                        if (woundedEnemies.length > 0) {
+                            const healTarget = woundedEnemies[Math.floor(Math.random() * woundedEnemies.length)];
+                            const healAmount = move.heal;
+                            healTarget.hp = Math.min(healTarget.maxHp, healTarget.hp + healAmount);
+                            
+                            addLog(`✨ ${enemy.name} usa ${move.name} su ${healTarget.name} ripristinando ${healAmount} HP!`);
+                            applyHitAnimation(healTarget);
+                        } else {
+                            addLog(`✨ ${enemy.name} prega, ma non c'è nessuno da curare.`);
+                        }
+                        
+                        actionIndex++;
+                        if (actionIndex === aliveEnemies.length) {
+                            endEnemyTurn();
+                        }
+                        return; // Angels don't attack
+                    }
+                    
+                    let damage = move.damage;
+                    
+                    // Apply Cyanide debuff if enemy has it
+                    if (gameState.statusEffects.cyanideDebuffs[enemy.id]) {
+                        damage = Math.floor(damage * 0.7); // -30% damage
+                    }
+
+                    // Check if target has immunity
+                    if (gameState.statusEffects.immunity[target.id]) {
+                        addLog(`✨ ${enemy.name} tenta di attaccare ${target.name}!`);
+                        addLog(`✨ ${target.name} è immune! Nessun danno subito!`);
+                        actionIndex++;
+                        
+                        if (actionIndex === aliveEnemies.length) {
+                            endEnemyTurn();
+                        }
+                        return; // EXIT - immunity blocks all damage
+                    }
+
+                    // Check if knight's defensive stance is active for this target
+                    if (gameState.knightData.defensiveStance) {
+                        const stance = gameState.knightData.defensiveStance;
+                        const knight = gameState.allies.find(a => a.class === 'knight');
+                        
+                        // Check if target is protected (either specifically or knight protecting self)
+                        const isProtected = stance.protectedAlly === target.id || 
+                                          (stance.protectedAlly === null && target.id === knight.id);
+                        
+                        if (isProtected) {
+                            // IMPORTANT: Target takes NO damage - attack is completely blocked
+                            addLog(`🛡️ ${enemy.name} tenta di attaccare ${target.name}!`);
+                            addLog(`⚔️ ${knight.name} blocca l'attacco! ${target.name} non subisce danni!`);
+                            addLog(`💥 ${enemy.name} subisce 35 danni riflessi!`);
+                            
+                            // Only the enemy takes reflected damage - target is unharmed
+                            enemy.hp = Math.max(0, enemy.hp - 35);
+                            applyHitAnimation(enemy);
+                            
+                            // Clear defensive stance after use
+                            gameState.knightData.defensiveStance = null;
+                            renderCharacters();
+                            actionIndex++;
+                            
+                            if (actionIndex === aliveEnemies.length) {
+                                endEnemyTurn();
+                            }
+                            return; // EXIT HERE - no damage to target
+                        }
+                    }
+
+                    // Check if target has a shield
+                    if (gameState.statusEffects.shields[target.id]) {
+                        const shield = gameState.statusEffects.shields[target.id];
+                        
+                        if (shield >= damage) {
+                            // Shield absorbs all damage
+                            gameState.statusEffects.shields[target.id] -= damage;
+                            addLog(`🛡️ ${enemy.name} attacca ${target.name}! Lo scudo assorbe ${damage} danni!`);
+                            
+                            if (gameState.statusEffects.shields[target.id] <= 0) {
+                                delete gameState.statusEffects.shields[target.id];
+                                addLog(`💥 Lo scudo di ${target.name} si infrange e riflette 30 danni a ${enemy.name}!`);
+                                enemy.hp = Math.max(0, enemy.hp - 30);
+                                applyHitAnimation(enemy);
+                            }
+                        } else {
+                            // Shield breaks and remaining damage goes through
+                            const remainingDamage = damage - shield;
+                            delete gameState.statusEffects.shields[target.id];
+                            target.hp = Math.max(0, target.hp - remainingDamage);
+                            
+                            addLog(`🛡️ ${enemy.name} attacca ${target.name}!`);
+                            addLog(`💥 Lo scudo assorbe ${shield} danni e si infrange! Riflette 30 danni a ${enemy.name}!`);
+                            addLog(`⚔️ ${target.name} subisce ${remainingDamage} danni rimanenti!`);
+                            
+                            enemy.hp = Math.max(0, enemy.hp - 30);
+                            applyHitAnimation(enemy);
+                            applyHitAnimation(target);
+                        }
+                        
+                        renderCharacters();
+                        actionIndex++;
+                        
+                        if (actionIndex === aliveEnemies.length) {
+                            endEnemyTurn();
+                        }
+                        return; // EXIT - shield handled
+                    }
+
+                    // Normal attack - only executed if no protections triggered
+                    target.hp = Math.max(0, target.hp - damage);
+                    addLog(`💥 ${enemy.name} attacca ${target.name} causando ${damage} danni!`);
+                    applyHitAnimation(target);
+
+                    // Check if target is brawler with provocative stance active
+                    if (target.class === 'brawler' && gameState.brawlerData.provocativeStanceActive) {
+                        addLog(`😡 ${target.name} è stato colpito mentre era provocatorio!`);
+                        addLog(`😤 ${target.name} entra in RAGE! +50% danni per 3 turni!`);
+                        gameState.brawlerData.rageBuff = 3;
+                        gameState.brawlerData.provocativeStanceActive = false;
+                        // Set cooldown ONLY when triggered
+                        gameState.brawlerData.provocativeStanceLastUsed = gameState.turnCount;
+                        gameState.brawlerData.wasTriggered = true;
+                        renderCharacters();
+                    }
+
+                    actionIndex++;
+                    
+                    if (actionIndex === aliveEnemies.length) {
+                        endEnemyTurn();
+                    }
+                }, actionIndex * 1500);
+            });
+
+            if (aliveEnemies.length === 0) {
+                endEnemyTurn();
+            }
+        }
+
+        function endEnemyTurn() {
+            setTimeout(() => {
+                // Clear defensive stance if it wasn't used
+                if (gameState.knightData.defensiveStance) {
+                    addLog('🛡️ La posa difensiva del Cavaliere termina.');
+                    gameState.knightData.defensiveStance = null;
+                }
+                
+                // Clear taunt
+                if (gameState.squireData.tauntActive) {
+                    addLog('💢 La Provocazione dello Scudiero termina.');
+                    gameState.squireData.tauntActive = false;
+                }
+                
+                // Clear provocative stance if not triggered (no cooldown)
+                if (gameState.brawlerData.provocativeStanceActive) {
+                    addLog('😡 La posa provocatoria termina senza essere attivata. Nessun cooldown!');
+                    gameState.brawlerData.provocativeStanceActive = false;
+                    // Don't set cooldown since it wasn't triggered
+                }
+                
+                // Clear wasTriggered flag after cooldown expires
+                if (gameState.brawlerData.wasTriggered) {
+                    const turnsSince = gameState.turnCount - gameState.brawlerData.provocativeStanceLastUsed;
+                    if (turnsSince >= 3) {
+                        gameState.brawlerData.wasTriggered = false;
+                    }
+                }
+                
+                // Decrease Rissa duration and apply self-damage
+                if (gameState.brawlerData.rissaActive) {
+                    // Brawler takes 10 damage per turn during Rissa
+                    const brawler = gameState.allies.find(a => a.class === 'brawler');
+                    if (brawler && brawler.hp > 0) {
+                        brawler.hp = Math.max(0, brawler.hp - 10);
+                        addLog(`💥 ${brawler.name} subisce 10 danni dalla RISSA!`);
+                    }
+                    
+                    gameState.brawlerData.rissaTurnsRemaining--;
+                    if (gameState.brawlerData.rissaTurnsRemaining <= 0) {
+                        addLog('💥 La RISSA termina! I nemici possono attaccare di nuovo.');
+                        gameState.brawlerData.rissaActive = false;
+                    } else {
+                        addLog(`💥 RISSA continua! ${gameState.brawlerData.rissaTurnsRemaining} turni rimanenti.`);
+                    }
+                }
+                
+                // Decrease rage buff duration
+                if (gameState.brawlerData.rageBuff > 0) {
+                    gameState.brawlerData.rageBuff--;
+                    if (gameState.brawlerData.rageBuff <= 0) {
+                        addLog('😤 La Rabbia del Rissoso termina.');
+                    }
+                }
+                
+                // Decrease Nitro buff durations
+                for (const allyId in gameState.statusEffects.nitroBuffs) {
+                    gameState.statusEffects.nitroBuffs[allyId]--;
+                    if (gameState.statusEffects.nitroBuffs[allyId] <= 0) {
+                        const ally = gameState.allies.find(a => a.id === allyId);
+                        if (ally) {
+                            addLog(`⚡ L'effetto Nitro su ${ally.name} termina.`);
+                        }
+                        delete gameState.statusEffects.nitroBuffs[allyId];
+                    }
+                }
+                
+                // Decrease Cyanide debuff durations
+                for (const enemyId in gameState.statusEffects.cyanideDebuffs) {
+                    gameState.statusEffects.cyanideDebuffs[enemyId]--;
+                    if (gameState.statusEffects.cyanideDebuffs[enemyId] <= 0) {
+                        const enemy = gameState.enemies.find(e => e.id === enemyId);
+                        if (enemy) {
+                            addLog(`☠️ L'effetto Cianuro su ${enemy.name} termina.`);
+                        }
+                        delete gameState.statusEffects.cyanideDebuffs[enemyId];
+                    }
+                }
+                
+                // Decrease Immunity durations
+                for (const allyId in gameState.statusEffects.immunity) {
+                    gameState.statusEffects.immunity[allyId]--;
+                    if (gameState.statusEffects.immunity[allyId] <= 0) {
+                        const ally = gameState.allies.find(a => a.id === allyId);
+                        if (ally) {
+                            addLog(`✨ L'immunità di ${ally.name} termina.`);
+                        }
+                        delete gameState.statusEffects.immunity[allyId];
+                    }
+                }
+                
+                gameState.movesUsedThisTurn = 0;
+                document.getElementById('turnIndicator').textContent = '👤 Il Tuo Turno';
+                renderCharacters();
+                renderMovesPanel();
+                addLog('🔄 Il tuo turno! Seleziona un alleato.');
+                checkGameOver();
+            }, 1000);
+        }
+
+        function addLog(message) {
+            const logEntries = document.getElementById('logEntries');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = message;
+            logEntries.insertBefore(entry, logEntries.firstChild);
+
+            while (logEntries.children.length > 10) {
+                logEntries.removeChild(logEntries.lastChild);
+            }
+        }
+
+        function checkGameOver() {
+            const aliveAllies = gameState.allies.filter(a => a.hp > 0);
+            const aliveEnemies = gameState.enemies.filter(e => e.hp > 0);
+
+            if (aliveEnemies.length === 0) {
+                // Wave completed! Spawn next wave
+                showWaveComplete();
+            } else if (aliveAllies.length === 0) {
+                showGameOver('💀 SCONFITTA 💀', `Sei stato sconfitto all'ondata ${gameState.waveNumber}!`);
+            }
+        }
+
+        function showWaveComplete() {
+            gameState.waveNumber++;
+            
+            // Show temporary wave complete message
+            const message = document.createElement('div');
+            message.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(10, 0, 30, 0.95);
+                padding: 40px 60px;
+                border-radius: 20px;
+                border: 4px solid var(--neon-green);
+                text-align: center;
+                z-index: 3000;
+                animation: wave-complete-appear 0.5s ease;
+                box-shadow: 0 0 60px rgba(57, 255, 20, 0.8);
+            `;
+            message.innerHTML = `
+                <h2 style="font-size: 2.5rem; margin-bottom: 15px; color: var(--neon-green); font-family: 'Bungee', cursive;">
+                    ✨ ONDATA ${gameState.waveNumber - 1} COMPLETATA! ✨
+                </h2>
+                <p style="font-size: 1.2rem; color: white;">Preparati per l'ondata successiva...</p>
+            `;
+            document.body.appendChild(message);
+            
+            // Remove message and spawn next wave after 2 seconds
+            setTimeout(() => {
+                message.remove();
+                spawnWave();
+                addLog(`💚 I tuoi alleati si preparano per l'ondata ${gameState.waveNumber}!`);
+            }, 2000);
+        }
+
+        function showGameOver(title, message) {
+            const gameOver = document.createElement('div');
+            gameOver.className = 'game-over';
+            gameOver.innerHTML = `
+                <h2>${title}</h2>
+                <p style="font-size: 1.5rem; margin-bottom: 15px; color: var(--neon-pink);">
+                    ${message}
+                </p>
+                <p style="font-size: 1.2rem; margin-bottom: 30px; color: var(--neon-blue);">
+                    🌊 Ondate Sopravvissute: ${gameState.waveNumber - 1} 🌊
+                </p>
+                <button class="move-button" onclick="location.reload()">
+                    🔄 Gioca Ancora
+                </button>
+            `;
+            document.body.appendChild(gameOver);
+        }
+
+        window.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>
